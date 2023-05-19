@@ -1,9 +1,13 @@
 const express = require('express');
+require("dotenv").config();
 const bcrypt = require("bcrypt");
+const bodyParser = require('body-parser');
+const crypto = require("crypto");
 const db = require("./database");
-//db.connect();
+db.connect();
 
 const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
 const PORT = process.env.PORT || 3000;
 
 async function hashPassword(password) {
@@ -40,7 +44,7 @@ app.post("/login", (req,res) =>{
     let username = req.body.username;
     let password = req.body.password;
     db.query(
-    `SELECT SALT,HASH,ID, ADMIN FROM USERS WHERE USERNAME = ${db.escape(username)};`,
+    `SELECT SALT,HASH,ID, ADMIN FROM users WHERE USERNAME = ${db.escape(username)};`,
     async (err,result,field) => {
     if (err){
         throw err
@@ -60,9 +64,10 @@ app.post("/login", (req,res) =>{
             //secure: true
             });
             //console.log(`INSERT INTO COOKIES VALUES('${result[0].ID}',${sessionID});`)
-            db.query(
-            `INSERT INTO COOKIES VALUES(${db.escape(sessionID)},'${db.escape(result[0].ID)}');`
-            );
+            // Add cookie support!
+            /*db.query(
+            `INSERT INTO cookies VALUES(${db.escape(sessionID)},'${db.escape(result[0].ID)}');`
+            );*/
             if (result[0].ADMIN === 1){
             res.redirect("/dashboard")
             }
@@ -88,14 +93,16 @@ app.get("/register", (req,res)=>{
     res.render("register");
 });
 
-app.post("/register", (req,res) =>{
+app.post("/register", async (req,res) =>{
+    console.log(req.body.password);
     let name = req.body.name;
     let username = req.body.username;
     let password = req.body.password;
     let passwordC = req.body.confirmPassword;
-    var pass = hashPassword(password);
+    var pass = await hashPassword(password);
+    console.log(pass);
     db.query(
-    "select * from USERS where USERNAME = " + db.escape(username) + ";",
+    "select * from users where USERNAME = " + db.escape(username) + ";",
     (err, result, field) => {
         if (err){
         throw err
@@ -104,9 +111,9 @@ app.post("/register", (req,res) =>{
         if (result[0] === undefined) {
             if (name && (password === passwordC)) {
             db.query(
-                `INSERT INTO USERS (USERNAME, NAME, SALT, HASH, ADMIN) VALUES(${db.escape(username)},${db.escape(name)},'${pass.salt}', '${pass.hash}', 0);`
+                `INSERT INTO users (USERNAME, NAME, SALT, HASH, ADMIN) VALUES(${db.escape(username)},${db.escape(name)},'${pass.salt}', '${pass.hash}', 0);`
             );
-            res.render("Success");
+            res.send("Success");
             } else if (password !== passwordC) {
             res.send("Passwords didn't match");
             } else {
