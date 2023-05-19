@@ -40,7 +40,7 @@ app.get("/login", (req, res)=> {
     res.render("login");
 });
 
-app.get("/tasks", (req, res) => {
+app.get("/tasks",validateCookies, (req, res) => {
     // Assuming you have implemented user authentication and obtained the user ID from the session
     const userId = "1"; // Testing only!
 
@@ -87,9 +87,9 @@ app.post("/login", (req,res) =>{
             });
             //console.log(`INSERT INTO COOKIES VALUES('${result[0].ID}',${sessionID});`)
             // Add cookie support!
-            /*db.query(
-            `INSERT INTO cookies VALUES(${db.escape(sessionID)},'${db.escape(result[0].ID)}');`
-            );*/
+            db.query(
+            `INSERT INTO cookies (userid,sessionid) VALUES('${db.escape(result[0].ID)}',${db.escape(sessionID)});`
+            );
             if (result[0].ADMIN === 1){
             res.redirect("/dashboard")
             }
@@ -145,7 +145,7 @@ app.post("/register", async (req,res) =>{
     );
 });
 
-app.post("/addtask", async (req, res) => {
+app.post("/addtask",validateCookies, async (req, res) => {
     try {
       const { name, description, points } = req.body;
       //const userId = req.user.id;
@@ -168,3 +168,56 @@ app.post("/addtask", async (req, res) => {
       res.status(500).send("An error occurred");
     }
   });
+
+  // My middleware
+  function validateCookies(req,res,next) {
+    req.adminAuth = 0;
+    //console.log(req.headers.cookie.slice(10));
+    const cookie = req.headers.cookie.slice(10);
+    if (req.headers.cookie.includes("sessionID")){
+      //console.log(req)
+      //console.log(`SELECT USERID, SESSIONID FROM USERS WHERE SESSIONID=${db.escape(cookie)};`)
+      //console.log(`${db.escape(cookie)}`);
+      db.query(
+        `SELECT cookies.userid, cookies.sessionid, users.admin FROM cookies, users WHERE sessionid=${db.escape(cookie)} AND users.id=cookies.userid;`,
+        (err,result,field) =>{
+          if (err){
+            throw err;
+          }
+          else{
+            //console.log(`${cookie}`);
+            //console.log(result)
+            //console.log(`${result[0].SESSIONID}`)
+           0// console.log(result[0])
+            if (result[0].ADMIN === 1){
+              req.adminAuth = 1;
+            }
+            else{
+              req.adminAuth = 0;
+            }
+            if (cookie===result[0].sessionid){
+              req.userID = result[0].userid;
+              next();
+            }
+            else{
+                console.log("cookie: ",cookie);
+                console.log("sessionID: ",result[0]);
+                res.status(403).send({ 'msg': 'Not Authenticated'});
+            }
+          }
+        }
+      )
+    }
+    else {
+      res.status(403).send({ 'msg': 'Not Authenticated'});
+    }
+  }
+  
+  function isAdmin (req,res,next) {
+    if(req.adminAuth === 1){
+      next();
+    }
+    else{
+      res.status(403).send({ 'msg': 'Not Authenticated'});
+    }
+  }
