@@ -40,6 +40,28 @@ app.get("/login", (req, res)=> {
     res.render("login");
 });
 
+app.get("/tasks", (req, res) => {
+    // Assuming you have implemented user authentication and obtained the user ID from the session
+    const userId = "1"; // Testing only!
+
+    // Query the database to retrieve tasks for the logged-in user
+    db.query(
+        `SELECT * FROM tasks WHERE user_id = ${userId}`,
+        (err, result) => {
+        if (err) {
+            throw err;
+        } else {
+            // Send the retrieved tasks as the response
+            res.send(result);
+        }
+        }
+    );
+});
+
+app.get("/register", (req,res)=>{
+    res.render("register");
+});
+
 app.post("/login", (req,res) =>{
     let username = req.body.username;
     let password = req.body.password;
@@ -89,10 +111,6 @@ app.post("/login", (req,res) =>{
     )
 });
 
-app.get("/register", (req,res)=>{
-    res.render("register");
-});
-
 app.post("/register", async (req,res) =>{
     console.log(req.body.password);
     let name = req.body.name;
@@ -126,3 +144,27 @@ app.post("/register", async (req,res) =>{
     }
     );
 });
+
+app.post("/addtask", async (req, res) => {
+    try {
+      const { name, description, points } = req.body;
+      //const userId = req.user.id;
+      const userId = 1; // For testing only
+      // Perform any necessary validation on the input fields
+      if (!name || !description || !points) {
+        return res.send("All fields must be provided");
+      }
+  
+      // Insert the task into the database
+      const query = `
+        INSERT INTO tasks (name, description, points, user_id)
+        VALUES (${db.escape(name)}, ${db.escape(description)}, ${db.escape(points)}, ${db.escape(userId)})
+      `;
+      await db.query(query);
+      console.log("new task added")
+      res.send("Task added successfully");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("An error occurred");
+    }
+  });
